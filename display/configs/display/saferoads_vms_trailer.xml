@@ -1,0 +1,63 @@
+<display>
+    <uniqueID>7</uniqueID>
+    <name>Saferoads VMS Trailer</name>
+    <description>48x28 VMS trailer, 7 superchannels with data entering from the right.</description>
+    <xRes>48</xRes>
+    <yRes>28</yRes>
+    <superChannel id="0">
+        <module index="0" xPos="40" yPos="0"/>
+        <module index="1" xPos="32" yPos="0"/>
+        <module index="2" xPos="24" yPos="0"/>
+        <module index="3" xPos="16" yPos="0"/>
+        <module index="4" xPos="8" yPos="0"/>
+        <module index="5" xPos="0" yPos="0"/>
+    </superChannel>
+    <superChannel id="1">
+        <module index="0" xPos="40" yPos="4"/>
+        <module index="1" xPos="32" yPos="4"/>
+        <module index="2" xPos="24" yPos="4"/>
+        <module index="3" xPos="16" yPos="4"/>
+        <module index="4" xPos="8" yPos="4"/>
+        <module index="5" xPos="0" yPos="4"/>
+    </superChannel>
+    <superChannel id="2">
+        <module index="0" xPos="40" yPos="8"/>
+        <module index="1" xPos="32" yPos="8"/>
+        <module index="2" xPos="24" yPos="8"/>
+        <module index="3" xPos="16" yPos="8"/>
+        <module index="4" xPos="8" yPos="8"/>
+        <module index="5" xPos="0" yPos="8"/>
+    </superChannel>
+    <superChannel id="3">
+        <module index="0" xPos="40" yPos="12"/>
+        <module index="1" xPos="32" yPos="12"/>
+        <module index="2" xPos="24" yPos="12"/>
+        <module index="3" xPos="16" yPos="12"/>
+        <module index="4" xPos="8" yPos="12"/>
+        <module index="5" xPos="0" yPos="12"/>
+    </superChannel>
+    <superChannel id="4">
+        <module index="0" xPos="40" yPos="16"/>
+        <module index="1" xPos="32" yPos="16"/>
+        <module index="2" xPos="24" yPos="16"/>
+        <module index="3" xPos="16" yPos="16"/>
+        <module index="4" xPos="8" yPos="16"/>
+        <module index="5" xPos="0" yPos="16"/>
+    </superChannel>
+    <superChannel id="5">
+        <module index="0" xPos="40" yPos="20"/>
+        <module index="1" xPos="32" yPos="20"/>
+        <module index="2" xPos="24" yPos="20"/>
+        <module index="3" xPos="16" yPos="20"/>
+        <module index="4" xPos="8" yPos="20"/>
+        <module index="5" xPos="0" yPos="20"/>
+    </superChannel>
+    <superChannel id="6">
+        <module index="0" xPos="40" yPos="24"/>
+        <module index="1" xPos="32" yPos="24"/>
+        <module index="2" xPos="24" yPos="24"/>
+        <module index="3" xPos="16" yPos="24"/>
+        <module index="4" xPos="8" yPos="24"/>
+        <module index="5" xPos="0" yPos="24"/>
+    </superChannel>
+</display>

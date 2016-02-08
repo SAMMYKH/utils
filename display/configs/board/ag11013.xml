@@ -1,0 +1,6 @@
+<board>
+    <uniqueID>1</uniqueID>
+    <partNumber>AG11013</partNumber>
+    <name>8x20-pin Breakout Board</name>
+    <description>Provides 8 20-pin IDC locking connectors for use with high-density RGB modules. Has 4 RGB channels per line and a rotary switch.</description>
+</board>

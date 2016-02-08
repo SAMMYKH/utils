@@ -1,0 +1,6 @@
+<board>
+    <uniqueID>3</uniqueID>
+    <partNumber>AG11024</partNumber>
+    <name>8x10-pin Breakout Board</name>
+    <description>Provides 8 10-pin IDC locking connectors for use with low-density RGB modules. Has 1 RGB channel per line and a rotary switch.</description>
+</board>

@@ -1,0 +1,10 @@
+<display>
+    <uniqueID>6</uniqueID>
+    <name>Woolworths Test Display</name>
+    <description>Single-module test display.</description>
+    <xRes>32</xRes>
+    <yRes>16</yRes>
+    <superChannel id="0">
+        <module index="0" xPos="0" yPos="0"/>
+    </superChannel>
+</display>

@@ -1,0 +1,7 @@
+<bitstream>
+    <uniqueID>12</uniqueID>
+    <bitFile>grey_1_ax_vms.bit</bitFile>
+    <name>Greyscale Axent VMS</name>
+    <description>Axent VMS bitstream, for new SerDes over cat5 VMS system.</description>
+    <compatibilities>5</compatibilities>
+</bitstream>

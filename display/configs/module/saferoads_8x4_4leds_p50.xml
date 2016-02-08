@@ -1,0 +1,19 @@
+<module>
+    <uniqueID>12</uniqueID>
+    <partNumber>CZ5532C</partNumber>
+    <name>Saferoads 8x4 4-led P50</name>
+    <description>Module used for Saferoads single-colour VMS trailer.</description>
+    <xRes>8</xRes>
+    <yRes>4</yRes>
+    <scanLines>1</scanLines>
+    <channel id="0">
+        [31, 30, 29, 28, 27, 26, 25, 24,
+         23, 22, 21, 20, 19, 18, 17, 16,
+         15, 14, 13, 12, 11, 10,  9,  8,
+          7,  6,  5,  4,  3,  2,  1,  0]
+    </channel>
+    <voltage>12V</voltage>
+    <staticPower>0.3W</staticPower>
+    <maxPower>5.3W</maxPower>
+    <pitch>50mm</pitch>
+</module>

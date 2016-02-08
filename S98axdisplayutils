@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Startup script for ax-displayutils package. Configures the FPGS and sets up
+# all the displays.
+
+# Run display configuration utility.
+echo "Configuring displays..."
+ax-display configure
+
+while [ `cat /sys/bus/platform/devices/axent_fpga.0/config` != `sqlite3 /usr/share/db/config.db 'select value from system where parameter="bitstream"'` ]
+do
+    echo "retrying..."
+    ax-display configure
+done
+
+echo "done"

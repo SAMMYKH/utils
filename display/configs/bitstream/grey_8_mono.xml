@@ -1,0 +1,7 @@
+<bitstream>
+    <uniqueID>10</uniqueID>
+    <bitFile>grey_8_mono.bit</bitFile>
+    <name>Petrol Price P16 1-LED</name>
+    <description>Monochrome version of grey_8.</description>
+    <compatibilities>2</compatibilities>
+</bitstream>

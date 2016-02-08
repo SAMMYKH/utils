@@ -1,0 +1,801 @@
+#!/usr/bin/python
+#
+
+from xml.etree import ElementTree as etree
+import os, sys
+
+killtree_script = \
+"""
+killtree() {
+    local _pid=$1
+    local _sig=${2-TERM}
+    local _regex="[ ]*([0-9]+)[ ]+${_pid}"
+    for _child in $(ps -o "pid,ppid" | egrep "${_regex}" \
+| sed "s/${_regex}/\\1/g"); do
+        killtree ${_child} ${_sig}
+    done
+    kill -${_sig} ${_pid} 2>/dev/null
+}
+"""
+
+startup_control = \
+"""
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  restart|reload)
+        stop
+        start
+        ;;
+  *)
+        echo $"Usage: $0 {start|stop|restart}"
+        exit 1
+esac
+
+exit $?
+"""
+
+application_base = 'usr/app'
+receipt_file_path = os.path.join(application_base, 'receipt.xml')
+
+# Function to be called when the user issues the 'install' command.
+#TODO: ADD MORE VERBOSE PRINTS
+
+def app_install(args):
+    import tarfile, fnmatch, sqlite3, hashlib, re, shutil, binascii, subprocess
+    
+    # Check for a currently installed application first, fail if present.
+    if os.path.isfile(os.path.join(args.root, receipt_file_path)):
+        raise Exception('An application is already installed')
+    
+    # Open the tar archive.
+    with tarfile.open(args.filename) as archive:
+        # Extract application metadata.
+        if args.verbose:
+            print 'Extracting application metadata...'
+        
+        try:
+            app_meta = parse_tar_xml(archive, 'application.xml')
+        except:
+            raise Exception('Could not read application metadata')
+        
+        # Check to make sure platform version is at or above the minimum
+        # required by this application. Use '/etc/os-release' to compare.
+        platform_info = {}
+        with open(os.path.join(args.root, 'etc/os-release'), 'r') \
+        as platform_version_file:
+            for i in platform_version_file.readlines():
+                try:
+                    key, value = i.split('=')
+                except:
+                    pass
+                
+                platform_info[key.strip()] = value.strip()
+        
+        try:
+            platform_version = (int(platform_info['VERSION'].strip()[0]),
+                                int(platform_info['VERSION'].strip()[1]),
+                                int(platform_info['VERSION'].strip()[2]))
+        except:
+            platform_version = None
+        
+        if 'platformVersion' in app_meta.attrib \
+        and platform_version is not None:
+            app_plat_ver_str = app_meta.attrib['platformVersion'].split('.')
+            app_platform_version = (int(app_plat_ver_str[0]),
+                                    int(app_plat_ver_str[1]),
+                                    int(app_plat_ver_str[2]))
+        
+            # Compare platform version to required platform version.
+            if platform_version < app_platform_version:
+                raise Exception('Platform version is %d.%d.%d, \
+                                 but application requires at least \
+                                 %d.%d.%d' % (platform_version + \
+                                              app_platform_version))
+        
+        # Get selected configuration name.
+        config_name = args.config
+        config_list = fnmatch.filter((c for c in archive.getnames()),
+                                 'configs/*.cfg')
+        
+        # Fall back to default configuration if supplied is invalid.
+        if os.path.join('configs', str(config_name)) not in config_list \
+        or config_name is None:
+            try:
+                config_name = app_meta.attrib['defaultConfig']
+            except KeyError:
+                raise Exception('No configuration specified, ' \
+                                + 'and no default configuration found')
+        
+        # Parse the configuration file.
+        try:
+            config = parse_tar_xml(archive,
+                os.path.join('configs', str(config_name)))
+        except:
+            raise Exception('Could not find config ' \
+                            + os.path.join('configs', str(config_name)))
+        
+        # Get the list of all the files to be installed for this configuration.
+        file_list = list(app_file_members(archive, app_meta, args.root))
+        
+        # Find the 'extraFiles' part of the config (if it exists) and add the
+        # files from there.
+        extra_files = config.find('extraFiles')
+        if extra_files is not None:
+            file_list += list(app_file_members(
+                archive, extra_files, args.root))
+        
+        # Now simply run the extractall method.
+        archive.extractall(path=args.root, members=(f[0] for f in file_list))
+        
+        # Next, we must create the startup script. This is generated from the
+        # 'startupCommand' elements in the application and config files.
+        generate_startup(args.root, app_meta, config)
+        
+        # Make sure the startup file mode is correct.
+        os.chmod(os.path.join(args.root, 'etc/init.d/S99application'), 0755)
+        
+        # Need to add the file to the receipt and store its SHA1 hash.
+        with open(os.path.join(args.root, 'etc/init.d/S99application'), 'r') \
+        as startup_script:
+            m = hashlib.sha1()
+            m.update(startup_script.read())
+            sha1_hash = binascii.b2a_hex(m.digest())
+        
+        file_list.append((None, etree.Element('file',
+            attrib={'name': 'S99application',
+                    'path': '/etc/init.d',
+                    'mode': '755',
+                    'hash': sha1_hash})))
+        
+        # Get the configuration template file.
+        with open(os.path.join(args.root,
+        'usr/share/ax-utils/config_template'), 'r') as template_file:
+            config_template = template_file.read()
+        
+        # Make completely sure there's no existing database file.
+        try:
+            os.remove(os.path.join(args.root, 'usr/share/db/config.db'))
+        except OSError:
+            pass
+        
+        con = sqlite3.connect(
+            os.path.join(args.root, 'usr/share/db/config.db'))
+        
+        app_config_template = None
+        
+        # Also get application-specific config template.
+        try:
+            app_template_file = archive.extractfile('config_template')
+        except:
+            pass
+        else:
+            app_config_template = app_template_file.read()
+            app_template_file.close()
+        
+        # Generate config.db from selected config file.
+        con.executescript(config_template)
+        
+        # Add application-specific stuff to config.db
+        if app_config_template is not None:
+            con.executescript(app_config_template)
+        
+        # Get table names for the database.
+        tables = [t.group(0).split()[2].strip() \
+                  for t in re.finditer('CREATE TABLE.*', config_template)]
+        
+        tables += [t.group(0).split()[2].strip() \
+                   for t in re.finditer('CREATE TABLE.*', app_config_template)]
+        
+        # Iterate through intersection of tables names and XML element names.
+        for t in (set(tables).intersection((e.tag for e in config))):
+            for e in config.findall(t):
+                cur = con.execute('select * from %s' % t)
+                
+                # Get intersection of column names and XML attributes.
+                columns = set((c[0] for c in cur.description)).intersection(
+                      e.attrib.keys())
+                      
+                if len(columns):
+                    query = 'insert or replace into %s (%s) values (%s)' % \
+                            (t, ','.join(columns),
+                             ','.join([':'+c for c in columns]))
+                    
+                    con.execute(query, e.attrib)
+        
+        # Set the serial number from the MAC address.
+        serial_number = 0
+        try:
+            b1 = int(subprocess.check_output(
+                ['i2cget', '-y', '0', '0x50', '0xfd', 'b'],
+                stderr=-1).strip(), 16)
+            b2 = int(subprocess.check_output(
+                ['i2cget', '-y', '0', '0x50', '0xfe', 'b'],
+                stderr=-1).strip(), 16)
+            b3 = int(subprocess.check_output(
+                ['i2cget', '-y', '0', '0x50', '0xff', 'b'],
+                stderr=-1).strip(), 16)
+        except subprocess.CalledProcessError:
+            b1 = 0xff
+            b2 = 0xff
+            b3 = 0xfe
+        
+        serial_number += (b1<<16) + (b2<<8) + b3
+        
+        # Convert to base-36.
+        serial_string = ''
+        alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        
+        while serial_number != 0:
+            serial_number, i = divmod(serial_number, len(alphabet))
+            serial_string = alphabet[i] + serial_string
+        
+        serial_string = serial_string.zfill(5)
+        
+        # Store as hostname.
+        with open(os.path.join(args.root, 'etc/hostname'), 'w') \
+        as hostname_file:
+            hostname_file.write('ag11005-%s' % serial_string)
+        subprocess.call(['hostname', '-F',
+            os.path.join(args.root, '/etc/hostname')])
+        
+        with open(os.path.join(args.root, 'etc/hosts'), 'w') as hosts_file:
+            hosts_file.write('127.0.0.1\tlocalhost\n')
+            hosts_file.write('127.0.1.1\tag11005-%s\n' % serial_string)
+        
+        con.commit()
+        con.close()
+        
+        # Make sure the database mode is correct.
+        os.chmod(os.path.join(args.root, 'usr/share/db/config.db'), 0644)
+        
+        # Make a backup of the database for restoring settings to factory
+        # defaults.
+        os.system('cp ' \
+            + os.path.join(args.root, 'usr/share/db/config.db') + ' ' \
+            + os.path.join(args.root, 'usr/share/db/defaults.db'))
+        os.chmod(os.path.join(args.root, 'usr/share/db/defaults.db'), 0444)
+        
+        # Add the configuration database to the receipt, but don't calculate
+        # its hash because it'll change.
+        file_list.append((None, etree.Element('file',
+            attrib={'name': 'config.db',
+                    'path': '/usr/share/db',
+                    'mode': '644'})))
+        
+        # Add the defaults database to the receipt.
+        file_list.append((None, etree.Element('file',
+            attrib={'name': 'defaults.db',
+                    'path': '/usr/share/db',
+                    'mode': '444'})))
+        
+        # Now generate the receipt file.
+        receipt_attrib = {'name': app_meta.attrib['name'],
+                          'version': app_meta.attrib['version'],
+                          'config': config_name}
+        
+        if 'name' in config.attrib:
+            receipt_attrib['configName'] = config.attrib['name']
+        else:
+            receipt_attrib['configName'] = ''
+        
+        if args.backup is not None:
+            backup_path = args.backup
+            if backup_path[0] == '/':
+                backup_path = backup_path[1:]
+            
+            try:
+                os.mkdir(os.path.join(args.root, backup_path), 0700)
+            except OSError:
+                pass
+            
+            try:
+                shutil.copy(args.filename,
+                    os.path.join(args.root, backup_path, 'backup.tar.gz'))
+            except IOError:
+                if args.verbose:
+                    print 'Warning: Could not create backup'
+            else:
+                receipt_attrib['backup'] = \
+                    os.path.join('/', backup_path, 'backup.tar.gz')
+                if args.verbose:
+                    print 'Created backup of application archive'
+        
+        receipt_root = etree.Element('receipt', attrib=receipt_attrib)
+        
+        for f in file_list:
+            receipt_root.append(f[1])
+        
+        receipt = etree.ElementTree(element=receipt_root)
+        
+        # Make it look pretty.
+        indent(receipt_root)
+        
+        # Store the receipt file to disk.
+        with open(os.path.join(args.root, receipt_file_path), 'w') \
+        as receipt_file:
+            receipt.write(receipt_file)
+        
+        # Make sure the receipt file mode is correct.
+        os.chmod(os.path.join(args.root, receipt_file_path), 0644)
+        
+        # Run post-install script/s from the application metadata.
+        for p in app_meta.findall('postInstall'):
+            try:
+                import subprocess
+                subprocess.call([p.attrib['command']])
+            except:
+                pass
+
+# Function to be called when the user issues the 'uninstall' command.
+
+def app_uninstall(args):
+    import subprocess, shutil, sqlite3
+    
+    # Now, open the receipt and remove each file or directory mentioned there.
+    if not os.path.isfile(os.path.join(args.root, receipt_file_path)):
+        raise Exception('No application receipt found')
+    
+    try:
+        receipt = etree.parse(
+            os.path.join(args.root, receipt_file_path)).getroot()
+    except Exception as e:
+        raise Exception('Cannot parse receipt: ' + str(e))
+    
+    # Need to be sure to stop the app before uninstalling it.
+    subprocess.call(
+        [os.path.join(args.root, 'etc/init.d/S99application'), 'stop'])
+    
+    for f in receipt:
+        f_path = f.attrib['path']
+        if f_path[0] == '/':
+            f_path = f_path[1:]
+        target = os.path.join(args.root, f_path, f.attrib['name'])
+        
+        if f.tag != 'directory':
+            try:
+                os.remove(target)
+            except:
+                print >> sys.stderr, 'Warning: Could not remove ' + target
+            else:
+                if args.verbose:
+                    print 'Removed ' + target
+    
+    # Finally, just clear out the application folder to be sure we didn't miss
+    # anything.
+    shutil.rmtree(os.path.join(args.root, application_base),
+        ignore_errors=True)
+    
+    # Recreate application directory.
+    os.mkdir(os.path.join(args.root, application_base), 0755)
+    
+    # Create default config.db.
+    con = sqlite3.connect(
+        os.path.join(args.root, 'usr/share/db/config.db'))
+    
+    # Get the configuration template file.
+    with open(os.path.join(args.root,
+    'usr/share/ax-utils/config_template'), 'r') as template_file:
+        config_template = template_file.read()
+    
+    # Generate config.db from config_template file.
+    try:
+        con.executescript(config_template)
+    except sqlite3.OperationalError:
+        pass
+    else:
+        con.commit()
+
+    con.close()
+
+# Function to be called when the user issues the 'info' command.
+
+def app_info(args):
+    if args.filename is not None:
+        import tarfile
+        
+        with tarfile.open(args.filename) as archive:
+            # Extract application metadata.
+            if args.verbose:
+                print 'Extracting application metadata...'
+            
+            try:
+                metadata = parse_tar_xml(archive, 'application.xml')
+            except:
+                raise Exception('Could not read application metadata')
+    else:
+        # Read the receipt file.
+        try:
+            metadata = etree.parse(
+                os.path.join(args.root, receipt_file_path)).getroot()
+        except:
+            raise Exception('Cannot parse receipt file')
+    
+    # If the 'config' option is selected, just list configurations.
+    if args.config:
+        if args.filename is not None:
+            with tarfile.open(args.filename) as archive:
+                for c in list_configs(archive):
+                    print c[0] + ': ' + c[1]
+        else:
+            print metadata.attrib['config'] + ': ' \
+                + metadata.attrib['configName']
+    else:
+        # Print the application name and version.
+        try:
+            print metadata.attrib['name']
+            print 'Version ' + metadata.attrib['version']
+        except KeyError:
+            print >> sys.stderr, 'Error: malformed metadata'
+
+# Function to be called when the user issues the 'verify' command.
+
+def app_verify(args):
+    import hashlib, stat, binascii
+    
+    # Open the receipt file.
+    if not os.path.isfile(os.path.join(args.root, receipt_file_path)):
+        raise Exception('No application receipt found')
+    
+    try:
+        receipt = etree.parse(
+            os.path.join(args.root, receipt_file_path)).getroot()
+    except Exception as e:
+        raise Exception('Cannot parse receipt: ' + str(e))
+    
+    # Have a list of files to be repaired.
+    repair_list = []
+    
+    # Now check to make sure all the referenced files exist on the filesystem,
+    # and if so compare their hashes to make sure they're not corrupted.
+    for f in receipt:
+        repair = False
+        
+        f_path = f.attrib['path']
+        target = os.path.join(f_path, f.attrib['name'])
+        
+        # Check that the file exists.
+        if os.path.exists(target):
+            file_stat = os.lstat(target)[stat.ST_MODE]
+            
+            # Check the filetype.
+            if (f.tag =='directory' and not stat.S_ISDIR(file_stat)) \
+            or (f.tag =='file' and not stat.S_ISREG(file_stat)) \
+            or (f.tag =='link' and not stat.S_ISLNK(file_stat)):
+                if args.verbose:
+                    print 'Incorrect type: ' + target
+                repair = True
+            
+            # Check the file mode.
+            if int(f.attrib['mode'], 8) != stat.S_IMODE(file_stat):
+                if args.verbose:
+                    print 'Incorrect permissions: ' + target
+                repair = True
+            
+            # Check the file's hash.
+            if 'hash' in f.attrib:
+                with open(target, 'r') as data:
+                    m = hashlib.sha1()
+                    m.update(data.read())
+                    if binascii.b2a_hex(m.digest()) != f.attrib['hash']:
+                        if args.verbose:
+                            print 'Corrupted: ' + target
+                        repair = True
+        else:
+            if args.verbose:
+                print 'Missing: ' + target
+            repair = True
+        
+        if repair:
+            repair_list.append(f)
+    
+    if len(repair_list):
+        print str(len(repair_list)) + ' damaged files found'
+    else:
+        print 'No errors found'
+    
+    # Check to see if any damaged files should be repaired.
+    if args.repair and len(repair_list):
+        import tarfile
+        
+        if 'backup' not in receipt.attrib:
+            raise Exception(
+                'Unable to repair, application archive is not backed up')
+        
+        # Open application archive.
+        with tarfile.open(receipt.attrib['backup']) as archive:
+            if args.verbose:
+                print 'Repairing ' + str(len(repair_list)) + ' files...'
+            
+            # Extract originals of all files to be repaired over the top of
+            # the damaged files.
+            archive.extractall(path=args.root,
+                members=receipt_file_members(archive, repair_list))
+            
+            # Check to see if the startup file in included in repair_list. If
+            # so, we'll need to regenerate it because it's not actually in the
+            # application archive.
+            repair_startup = False
+            for f in repair_list:
+                if f.attrib['name'] == 'S99application':
+                    repair_startup = True
+                    break
+            
+            # Repair the startup file by simply regenerating it.
+            if repair_startup:
+                if args.verbose:
+                    print 'Repairing startup file...'
+                
+                try:
+                    app_meta = parse_tar_xml(archive, 'application.xml')
+                    config_meta = parse_tar_xml(archive,
+                        os.path.join('configs', receipt.attrib['config']))
+                except:
+                    print >> sys.stderr, 'Error: could not repair startup file'
+                else:
+                    generate_startup(args.root, app_meta, config_meta)
+                    
+                    # Make sure the startup file mode is correct.
+                    os.chmod(
+                        os.path.join(args.root, 'etc/init.d/S99application'),
+                        0755)
+        
+        # Print the message and exit.
+        print str(len(repair_list)) + ' files repaired successfully'
+
+# This function lists all available configurations.
+
+def list_configs(archive):
+    import fnmatch
+    
+    # Extract and list all available configurations.
+    config_list = fnmatch.filter((c for c in archive.getnames()),
+                                 'configs/*.cfg')
+    
+    # Print configurations.
+    for c in config_list:
+        try:
+            config = parse_tar_xml(archive, c)
+        except:
+            print >> sys.stderr, 'Error: could not read config ' + c
+            continue
+        
+        if 'name' in config.attrib:
+            yield (os.path.basename(c), config.attrib['name'])
+        else:
+            yield (os.path.basename(c), None)
+
+# This function takes a tar archive and a filename, and tries to extract the
+# given filename and parse it as an xml file.
+
+def parse_tar_xml(archive, filename):
+    try:
+        xml_file = archive.extractfile(filename)
+    except:
+        raise Exception('Error: Could not find specified file in archive.')
+    
+    try:
+        xml_meta = etree.parse(xml_file).getroot()
+    except Exception as e:
+        raise Exception('Error: Cannot parse metadata: ' + str(e))
+    finally:
+        xml_file.close()
+    
+    return xml_meta
+
+# Iterates through an element tree giving path and element reference tuples.
+
+def path_iter(element):
+    for e in element:
+        for i in path_iter(e):
+            try:
+                yield (os.path.join(element.attrib['name'], i[0]), i[1])
+            except KeyError:
+                yield (os.path.join(i[0]), i[1])
+    
+    if element.tag == 'directory' \
+    or element.tag == 'file' \
+    or element.tag == 'link':
+        yield (element.attrib['name'], element)
+
+# Convert an element tree to an iterator yielding TarInfo objects.
+
+def app_file_members(tar_file, element, root):
+    for f in path_iter(element):
+        try:
+            path = f[0][len(element.attrib['name']+'/'):] \
+                if f[0].startswith(element.attrib['name']+'/') else f[0]
+        except KeyError:
+            path = f[0].lstrip('/')
+        
+        try:
+            member = tar_file.getmember(os.path.join('data', path))
+        except:
+            continue
+        
+        try:
+            member.name = os.path.join(root,
+                                       f[1].attrib['path'].lstrip('/'),
+                                       f[1].attrib['name'])
+        except KeyError:
+            member.name = os.path.join(root, application_base, path)
+        
+        try:
+            member.mode = int(f[1].attrib['mode'], 8)
+        except KeyError:
+            member.mode = 0755
+        
+        # Also need to generate the receipt for this member.
+        receipt = etree.Element(f[1].tag, f[1].attrib)
+        
+        # And add the tarfile source for the member too.
+        receipt.attrib['source'] = path
+        
+        # Also make sure the path is explicitly set.
+        receipt.attrib['path'] = \
+            os.path.dirname('/' + member.name.lstrip(root))
+        
+        yield (member, receipt)
+
+# Same as above but for a receipt file.
+
+def receipt_file_members(tar_file, elements):
+    for f in elements:
+        try:
+            path = f.attrib['source']
+        except KeyError:
+            continue
+        
+        try:
+            member = tar_file.getmember(os.path.join('data', path))
+        except:
+            continue
+        
+        try:
+            member.name = os.path.join(f.attrib['path'], f.attrib['name'])
+        except KeyError:
+            member.name = os.path.join(application_base, path)
+        
+        try:
+            member.mode = int(f.attrib['mode'], 8)
+        except KeyError:
+            member.mode = 0755
+        
+        yield member
+
+# Generate a startup file given an element tree with one or more 'startup'
+# lines in it.
+
+def generate_startup(root, app_meta, config_meta):
+    startup_commands = app_meta.findall('startup')
+    startup_commands += config_meta.findall('startup')
+    
+    start_lines = []
+    stop_lines = []
+    
+    start_lines.append('start() {')
+    start_lines.append('        echo "Starting application \\"' \
+                       + app_meta.attrib['name'] + '\\" version ' \
+                       + app_meta.attrib['version'] + '..."')
+    stop_lines.append('stop() {')
+    stop_lines.append('        echo "Stopping application \\"' \
+                       + app_meta.attrib['name'] + '\\" version ' \
+                       + app_meta.attrib['version'] + '..."')
+    
+    # Create a new startup script.
+    with open(os.path.join(root, 'etc/init.d/S99application'), 'w') \
+    as startup_script:
+        # Add the shebang to the script.
+        startup_script.write('#!/bin/sh')
+        
+        # Add the 'killtree' function.
+        startup_script.write(killtree_script)
+        
+        # Generate a start/stop script line for each command.
+        for c in startup_commands:
+            try:
+                command = c.attrib['command']
+            except:
+                continue
+            
+            if 'daemon' in c.attrib and c.attrib['daemon'] == 'yes':
+                pid_file = os.path.join('/var/run',
+                    os.path.basename(command.strip())+'.pid')
+                
+                line = '        start-stop-daemon -b --start ' + '--pidfile ' \
+                     + pid_file + ' -m ' + '--startas ' + command + ' '
+                
+                if 'user' in c.attrib:
+                    line += '--chuid ' + c.attrib['user'] + ' '
+                
+                if 'arguments' in c.attrib:
+                    line += '-- ' + c.attrib['arguments']
+                
+                start_lines.append(line)
+                stop_lines.append('        killtree `cat ' + pid_file + '` 9')
+            else:
+                line = '        ' + command + ' '
+                
+                if 'arguments' in c.attrib:
+                    line += c.attrib['arguments']
+                
+                start_lines.append(line)
+        
+        start_lines.append('}')
+        stop_lines.append('}')
+        
+        startup_script.write('\n'.join(start_lines))
+        startup_script.write('\n')
+        startup_script.write('\n'.join(stop_lines))
+        
+        startup_script.write(startup_control)
+        
+# Makes it so we can print the xml file prettily.
+
+def indent(elem, level=0):
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        for e in elem:
+            indent(e, level+1)
+            if not e.tail or not e.tail.strip():
+                e.tail = i + "  "
+        if not e.tail or not e.tail.strip():
+            e.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
+if __name__ == '__main__':
+    import argparse
+    
+    # Read command-line arguments.
+    parser = argparse.ArgumentParser(
+        description='Installation and configuration utility \
+                     for Axent application packages.')
+    
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='print lots of stuff to stdout')
+    parser.add_argument('--root', default='/',
+                        help='root directory relative to which all \
+                        commands will be executed')
+    subparsers = parser.add_subparsers()
+    
+    # Parser for 'install' command.
+    parser_install = subparsers.add_parser('install')
+    parser_install.add_argument('filename', help='name of application archive \
+                                                  to be installed')
+    parser_install.add_argument('-c', '--config', help='config file to use')
+    parser_install.add_argument('-b', '--backup', default=None,
+                                help='location of archive backup')
+    parser_install.set_defaults(func=app_install)
+    
+    # Parser for 'uninstall' command.
+    parser_uninstall = subparsers.add_parser('uninstall')
+    parser_uninstall.set_defaults(func=app_uninstall)
+    
+    # Parser for 'info' command.
+    parser_info = subparsers.add_parser('info')
+    parser_info.add_argument('-f', '--filename', help='display information \
+                             about the given application archive')
+    parser_info.add_argument('-c', '--config', action='store_true',
+                             help='list information about available \
+                             configurations of application archive')
+    parser_info.set_defaults(func=app_info)
+    
+    # Parser for 'verify' command.
+    parser_verify = subparsers.add_parser('verify')
+    parser_verify.add_argument('-r', '--repair', action='store_true',
+                                help='repair any problems found during \
+                                      verification')
+    parser_verify.set_defaults(func=app_verify)
+    
+    args = parser.parse_args()
+    
+    # Call the appropriate function for the chosen command.
+    args.func(args)

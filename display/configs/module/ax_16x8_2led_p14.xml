@@ -1,0 +1,37 @@
+<module>
+    <uniqueID>6</uniqueID>
+    <partNumber>AG12014</partNumber>
+    <name>Axent 16x8 2-led P14</name>
+    <description>Axent 24V P14 monochrome module.</description>
+    <xRes>16</xRes>
+    <yRes>8</yRes>
+    <scanLines>1</scanLines>
+    <channel id="0">
+        [ 55,  54,  53,  52,  51,  50,  49,  48,
+          32,  33,  34,  35,  36,  37,  38,  39,
+          23,  22,  21,  20,  19,  18,  17,  16,
+           0,   1,   2,   3,   4,   5,   6,   7]
+    </channel>
+    <channel id="1">
+        [112, 113, 114, 115, 116, 117, 118, 119,
+          96,  97,  98,  99, 100, 101, 102, 103,
+          80,  81,  82,  83,  84,  85,  86,  87,
+          64,  65,  66,  67,  68,  69,  70,  71]
+    </channel>
+    <channel id="2">
+        [ 56,  57,  58,  59,  60,  61,  62,  63,
+          40,  41,  42,  43,  44,  45,  46,  47,
+          24,  25,  26,  27,  28,  29,  30,  31,
+           8,   9,  10,  11,  12,  13,  14,  15]
+    </channel>
+    <channel id="3">
+        [120, 121, 122, 123, 124, 125, 126, 127,
+         104, 105, 106, 107, 108, 109, 110, 111,
+          88,  89,  90,  91,  92,  93,  94,  95,
+          72,  73,  74,  75,  76,  77,  78,  79]
+    </channel>
+    <voltage>24V</voltage>
+    <staticPower>0.3W</staticPower>
+    <maxPower>5.3W</maxPower>
+    <pitch>14mm</pitch>
+</module>

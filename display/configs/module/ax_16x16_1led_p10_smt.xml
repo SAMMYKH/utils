@@ -1,0 +1,29 @@
+<module>
+    <uniqueID>14</uniqueID>
+    <partNumber>AG13002</partNumber>
+    <name>Axent 16x16 1-led P10 SMT</name>
+    <description>Axent 24V P10 monochrome SMT module.</description>
+    <xRes>16</xRes>
+    <yRes>16</yRes>
+    <scanLines>4</scanLines>
+    <channel id="0">
+        [ 27,  26,  25,  24,   8,   9,  10,  11,
+          12,  13,  14,  15,  31,  30,  29,  28]
+    </channel>
+    <channel id="1">
+        [ 59,  58,  57,  56,  40,  41,  42,  43,
+          44,  45,  46,  47,  63,  62,  61,  60]
+    </channel>
+    <channel id="2">
+        [ 19,  18,  17,  16,   0,   1,   2,   3,
+           4,   5,   6,   7,  23,  22,  21,  20]
+    </channel>
+    <channel id="3">
+        [ 51,  50,  49,  48,  32,  33,  34,  35,
+          36,  37,  38,  39,  55,  54,  53,  52]
+    </channel>
+    <voltage>24V</voltage>
+    <staticPower>1.2W</staticPower>
+    <maxPower>14W</maxPower>
+    <pitch>10mm</pitch>
+</module>

@@ -1,0 +1,28 @@
+CREATE TABLE system (
+    parameter           TEXT        PRIMARY KEY,
+    value               TEXT
+);
+
+CREATE TABLE display (
+    deviceName          TEXT        PRIMARY KEY,
+    playerName          TEXT,
+    displayID           INTEGER,
+    moduleID            INTEGER,
+    brightness          INTEGER     DEFAULT 0,
+    brightnessMode      TEXT        DEFAULT "auto",
+    testMode            INTEGER     DEFAULT 0,
+    greyDepth           INTEGER     DEFAULT 8,
+    oeDivisor           INTEGER,
+    gamma               TEXT        DEFAULT "2.2",
+    rOffset             INTEGER     DEFAULT 0,
+    gOffset             INTEGER     DEFAULT 0,
+    bOffset             INTEGER     DEFAULT 0,
+    rotation            INTEGER     DEFAULT 0
+);
+
+CREATE TABLE clock (
+    deviceName          TEXT        PRIMARY KEY,
+    frequency           INTEGER     DEFAULT 10000000,
+    coarsePhase         INTEGER     DEFAULT 0,
+    finePhase           INTEGER     DEFAULT 0
+);

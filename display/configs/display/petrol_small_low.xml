@@ -1,0 +1,15 @@
+<display>
+    <uniqueID>3</uniqueID>
+    <name>Petrol Price Panel - Small (Low Resolution)</name>
+    <description>Petrol price panel with 3 modules horizontal and 2 modules vertical. Data enters from bottom right hand corner and travels horizontally and then vertically. Resolution of display is only 48x16.</description>
+    <xRes>48</xRes>
+    <yRes>16</yRes>
+    <superChannel id="0">
+        <module index="0" xPos="32" yPos="8"/>
+        <module index="1" xPos="16" yPos="8"/>
+        <module index="2" xPos="0" yPos="8"/>
+        <module index="3" xPos="32" yPos="0"/>
+        <module index="4" xPos="16" yPos="0"/>
+        <module index="5" xPos="0" yPos="0"/>
+    </superChannel>
+</display>

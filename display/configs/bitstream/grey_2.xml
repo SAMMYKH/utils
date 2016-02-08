@@ -1,0 +1,7 @@
+<bitstream>
+    <uniqueID>5</uniqueID>
+    <bitFile>grey_2.bit</bitFile>
+    <name>Dual Display P16 1-LED</name>
+    <description>Bitstream which supports 2 displays of up to 32768 pixels. Intended for P16 displays with only 1 LED loaded per RGB pixel.</description>
+    <compatibilities>2</compatibilities>
+</bitstream>

@@ -1,0 +1,133 @@
+<display>
+    <uniqueID>10</uniqueID>
+    <name>Type A Axent VMS</name>
+    <description>16 by 10 Axent VMS modules, one superchannel per row.</description>
+    <xRes>256</xRes>
+    <yRes>70</yRes>
+    <superChannel id="0">
+        <module index="0" xPos="240" yPos="60"/>
+        <module index="1" xPos="224" yPos="60"/>
+        <module index="2" xPos="208" yPos="60"/>
+        <module index="3" xPos="192" yPos="60"/>
+        <module index="4" xPos="176" yPos="60"/>
+        <module index="5" xPos="160" yPos="60"/>
+        <module index="6" xPos="144" yPos="60"/>
+        <module index="7" xPos="128" yPos="60"/>
+        <module index="8" xPos="112" yPos="60"/>
+        <module index="9" xPos="96" yPos="60"/>
+        <module index="10" xPos="80" yPos="60"/>
+        <module index="11" xPos="64" yPos="60"/>
+        <module index="12" xPos="48" yPos="60"/>
+        <module index="13" xPos="32" yPos="60"/>
+        <module index="14" xPos="16" yPos="60"/>
+        <module index="15" xPos="0" yPos="60"/>
+    </superChannel>
+    <superChannel id="1">
+        <module index="0" xPos="240" yPos="50"/>
+        <module index="1" xPos="224" yPos="50"/>
+        <module index="2" xPos="208" yPos="50"/>
+        <module index="3" xPos="192" yPos="50"/>
+        <module index="4" xPos="176" yPos="50"/>
+        <module index="5" xPos="160" yPos="50"/>
+        <module index="6" xPos="144" yPos="50"/>
+        <module index="7" xPos="128" yPos="50"/>
+        <module index="8" xPos="112" yPos="50"/>
+        <module index="9" xPos="96" yPos="50"/>
+        <module index="10" xPos="80" yPos="50"/>
+        <module index="11" xPos="64" yPos="50"/>
+        <module index="12" xPos="48" yPos="50"/>
+        <module index="13" xPos="32" yPos="50"/>
+        <module index="14" xPos="16" yPos="50"/>
+        <module index="15" xPos="0" yPos="50"/>
+    </superChannel>
+    <superChannel id="2">
+        <module index="0" xPos="240" yPos="40"/>
+        <module index="1" xPos="224" yPos="40"/>
+        <module index="2" xPos="208" yPos="40"/>
+        <module index="3" xPos="192" yPos="40"/>
+        <module index="4" xPos="176" yPos="40"/>
+        <module index="5" xPos="160" yPos="40"/>
+        <module index="6" xPos="144" yPos="40"/>
+        <module index="7" xPos="128" yPos="40"/>
+        <module index="8" xPos="112" yPos="40"/>
+        <module index="9" xPos="96" yPos="40"/>
+        <module index="10" xPos="80" yPos="40"/>
+        <module index="11" xPos="64" yPos="40"/>
+        <module index="12" xPos="48" yPos="40"/>
+        <module index="13" xPos="32" yPos="40"/>
+        <module index="14" xPos="16" yPos="40"/>
+        <module index="15" xPos="0" yPos="40"/>
+    </superChannel>
+    <superChannel id="3">
+        <module index="0" xPos="240" yPos="30"/>
+        <module index="1" xPos="224" yPos="30"/>
+        <module index="2" xPos="208" yPos="30"/>
+        <module index="3" xPos="192" yPos="30"/>
+        <module index="4" xPos="176" yPos="30"/>
+        <module index="5" xPos="160" yPos="30"/>
+        <module index="6" xPos="144" yPos="30"/>
+        <module index="7" xPos="128" yPos="30"/>
+        <module index="8" xPos="112" yPos="30"/>
+        <module index="9" xPos="96" yPos="30"/>
+        <module index="10" xPos="80" yPos="30"/>
+        <module index="11" xPos="64" yPos="30"/>
+        <module index="12" xPos="48" yPos="30"/>
+        <module index="13" xPos="32" yPos="30"/>
+        <module index="14" xPos="16" yPos="30"/>
+        <module index="15" xPos="0" yPos="30"/>
+    </superChannel>
+    <superChannel id="4">
+        <module index="0" xPos="240" yPos="20"/>
+        <module index="1" xPos="224" yPos="20"/>
+        <module index="2" xPos="208" yPos="20"/>
+        <module index="3" xPos="192" yPos="20"/>
+        <module index="4" xPos="176" yPos="20"/>
+        <module index="5" xPos="160" yPos="20"/>
+        <module index="6" xPos="144" yPos="20"/>
+        <module index="7" xPos="128" yPos="20"/>
+        <module index="8" xPos="112" yPos="20"/>
+        <module index="9" xPos="96" yPos="20"/>
+        <module index="10" xPos="80" yPos="20"/>
+        <module index="11" xPos="64" yPos="20"/>
+        <module index="12" xPos="48" yPos="20"/>
+        <module index="13" xPos="32" yPos="20"/>
+        <module index="14" xPos="16" yPos="20"/>
+        <module index="15" xPos="0" yPos="20"/>
+    </superChannel>
+    <superChannel id="5">
+        <module index="0" xPos="240" yPos="10"/>
+        <module index="1" xPos="224" yPos="10"/>
+        <module index="2" xPos="208" yPos="10"/>
+        <module index="3" xPos="192" yPos="10"/>
+        <module index="4" xPos="176" yPos="10"/>
+        <module index="5" xPos="160" yPos="10"/>
+        <module index="6" xPos="144" yPos="10"/>
+        <module index="7" xPos="128" yPos="10"/>
+        <module index="8" xPos="112" yPos="10"/>
+        <module index="9" xPos="96" yPos="10"/>
+        <module index="10" xPos="80" yPos="10"/>
+        <module index="11" xPos="64" yPos="10"/>
+        <module index="12" xPos="48" yPos="10"/>
+        <module index="13" xPos="32" yPos="10"/>
+        <module index="14" xPos="16" yPos="10"/>
+        <module index="15" xPos="0" yPos="10"/>
+    </superChannel>
+    <superChannel id="6">
+        <module index="0" xPos="240" yPos="0"/>
+        <module index="1" xPos="224" yPos="0"/>
+        <module index="2" xPos="208" yPos="0"/>
+        <module index="3" xPos="192" yPos="0"/>
+        <module index="4" xPos="176" yPos="0"/>
+        <module index="5" xPos="160" yPos="0"/>
+        <module index="6" xPos="144" yPos="0"/>
+        <module index="7" xPos="128" yPos="0"/>
+        <module index="8" xPos="112" yPos="0"/>
+        <module index="9" xPos="96" yPos="0"/>
+        <module index="10" xPos="80" yPos="0"/>
+        <module index="11" xPos="64" yPos="0"/>
+        <module index="12" xPos="48" yPos="0"/>
+        <module index="13" xPos="32" yPos="0"/>
+        <module index="14" xPos="16" yPos="0"/>
+        <module index="15" xPos="0" yPos="0"/>
+    </superChannel>
+</display>

@@ -1,0 +1,7 @@
+<bitstream>
+    <uniqueID>2</uniqueID>
+    <bitFile>grey_8.bit</bitFile>
+    <name>Petrol Price P16 1-LED</name>
+    <description>Bitstream which supports up to 8 displays of up to 4096 pixels each. Intended for P16 displays with only 1 LED loaded per RGB pixel.</description>
+    <compatibilities>2</compatibilities>
+</bitstream>

@@ -1,0 +1,37 @@
+<module>
+    <uniqueID>10</uniqueID>
+    <partNumber>AG12019</partNumber>
+    <name>Axent 32x16 1-led P8 SMT</name>
+    <description>Axent 24V P8 monochrome SMT module.</description>
+    <xRes>32</xRes>
+    <yRes>16</yRes>
+    <scanLines>4</scanLines>
+    <channel id="0">
+        [ 39,  38,  37,  36,  35,  34,  33,  32,
+          47,  46,  45,  44,  43,  42,  41,  40,
+           0,   1,   2,   3,   4,   5,   6,   7,
+           8,   9,  10,  11,  12,  13,  14,  15]
+    </channel>
+    <channel id="1">
+        [103, 102, 101, 100,  99,  98,  97,  96,
+         111, 110, 109, 108, 107, 106, 105, 104,
+          64,  65,  66,  67,  68,  69,  70,  71,
+          72,  73,  74,  75,  76,  77,  78,  79]
+    </channel>
+    <channel id="2">
+        [ 55,  54,  53,  52,  51,  50,  49,  48,
+          63,  62,  61,  60,  59,  58,  57,  56,
+          16,  17,  18,  19,  20,  21,  22,  23,
+          24,  25,  26,  27,  28,  29,  30,  31]
+    </channel>
+    <channel id="3">
+        [119, 118, 117, 116, 115, 114, 113, 112,
+         127, 126, 125, 124, 123, 122, 121, 120,
+          80,  81,  82,  83,  84,  85,  86,  87,
+          88,  89,  90,  91,  92,  93,  94,  95]
+    </channel>
+    <voltage>24V</voltage>
+    <staticPower>1.2W</staticPower>
+    <maxPower>14W</maxPower>
+    <pitch>8mm</pitch>
+</module>

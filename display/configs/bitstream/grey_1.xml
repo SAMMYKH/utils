@@ -1,0 +1,7 @@
+<bitstream>
+    <uniqueID>4</uniqueID>
+    <bitFile>grey_1.bit</bitFile>
+    <name>Single Display P16 1-LED</name>
+    <description>Bitstream which supports 1 display of up to 65536 pixels. Intended for P16 displays with only 1 LED loaded per RGB pixel.</description>
+    <compatibilities>2</compatibilities>
+</bitstream>

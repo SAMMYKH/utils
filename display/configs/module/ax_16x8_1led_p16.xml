@@ -1,0 +1,37 @@
+<module>
+    <uniqueID>4</uniqueID>
+    <partNumber>AG12017</partNumber>
+    <name>Axent 16x8 1-led P16</name>
+    <description>Axent 24V P16 monochrome module.</description>
+    <xRes>16</xRes>
+    <yRes>8</yRes>
+    <scanLines>1</scanLines>
+    <channel id="0">
+        [ 39,  38,  55,  54,  53,  52,  37,  36,
+          20,  21,   4,   5,   6,   7,  22,  23,
+          35,  34,  51,  50,  49,  48,  33,  32,
+          16,  17,   0,   1,   2,   3,  18,  19]
+    </channel>
+    <channel id="1">
+        [103, 102, 119, 118, 117, 116, 101, 100,
+          84,  85,  68,  69,  70,  71,  86,  87,
+          99,  98, 115, 114, 113, 112,  97,  96,
+          80,  81,  64,  65,  66,  67,  82,  83]
+    </channel>
+    <channel id="2">
+        [ 47,  46,  63,  62,  61,  60,  45,  44,
+          28,  29,  12,  13,  14,  15,  30,  31,
+          43,  42,  59,  58,  57,  56,  41,  40,
+          24,  25,   8,   9,  10,  11,  26,  27]
+    </channel>
+    <channel id="3">
+        [111, 110, 127, 126, 125, 124, 109, 108,
+          92,  93,  76,  77,  78,  79,  94,  95,
+         107, 106, 123, 122, 121, 120, 105, 104,
+          88,  89,  72,  73,  74,  75,  90,  91]
+    </channel>
+    <voltage>24V</voltage>
+    <staticPower>0.3W</staticPower>
+    <maxPower>5.3W</maxPower>
+    <pitch>16mm</pitch>
+</module>

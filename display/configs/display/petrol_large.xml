@@ -1,0 +1,33 @@
+<display>
+    <uniqueID>2</uniqueID>
+    <name>Petrol Price Panel - Large</name>
+    <description>Petrol price panel with 6 modules horizontal and 4 modules vertical. Data enters from bottom right hand corner and travels horizontally and then vertically.</description>
+    <xRes>96</xRes>
+    <yRes>32</yRes>
+    <superChannel id="0">
+        <module index="0" xPos="80" yPos="24"/>
+        <module index="1" xPos="64" yPos="24"/>
+        <module index="2" xPos="48" yPos="24"/>
+        <module index="3" xPos="32" yPos="24"/>
+        <module index="4" xPos="16" yPos="24"/>
+        <module index="5" xPos="0" yPos="24"/>
+        <module index="6" xPos="80" yPos="16"/>
+        <module index="7" xPos="64" yPos="16"/>
+        <module index="8" xPos="48" yPos="16"/>
+        <module index="9" xPos="32" yPos="16"/>
+        <module index="10" xPos="16" yPos="16"/>
+        <module index="11" xPos="0" yPos="16"/>
+        <module index="12" xPos="80" yPos="8"/>
+        <module index="13" xPos="64" yPos="8"/>
+        <module index="14" xPos="48" yPos="8"/>
+        <module index="15" xPos="32" yPos="8"/>
+        <module index="16" xPos="16" yPos="8"/>
+        <module index="17" xPos="0" yPos="8"/>
+        <module index="18" xPos="80" yPos="0"/>
+        <module index="19" xPos="64" yPos="0"/>
+        <module index="20" xPos="48" yPos="0"/>
+        <module index="21" xPos="32" yPos="0"/>
+        <module index="22" xPos="16" yPos="0"/>
+        <module index="23" xPos="0" yPos="0"/>
+    </superChannel>
+</display>

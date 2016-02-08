@@ -1,0 +1,7 @@
+<bitstream>
+    <uniqueID>8</uniqueID>
+    <bitFile>grey_8_ax_adv.bit</bitFile>
+    <name>Petrol Price (Axent Modules) with Advanced Features</name>
+    <description>Bitstream which supports up to 8 displays of up to 4096 pixels each. Intended for 24V Axent modules. Supports advanced features such as fault detection and current trimming.</description>
+    <compatibilities>2</compatibilities>
+</bitstream>

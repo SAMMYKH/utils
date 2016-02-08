@@ -1,0 +1,6 @@
+<board>
+    <uniqueID>2</uniqueID>
+    <partNumber>AG11016</partNumber>
+    <name>8x16-pin Breakout Board</name>
+    <description>Provides 8 16-pin IDC locking connectors for use with most 16mm pitch RGB modules. Has 2 RGB channels per line and a rotary switch.</description>
+</board>

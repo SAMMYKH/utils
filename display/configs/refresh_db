@@ -1,0 +1,238 @@
+#!/usr/bin/python
+#
+
+from xml.etree import ElementTree as etree
+import sqlite3, os
+
+# Script which creates the skeleton of the database before we populate it with
+# values from the XML files.
+db_template = """
+    CREATE TABLE module (
+        uniqueID            INTEGER     PRIMARY	KEY,
+        partNumber          TEXT,
+        name                TEXT,
+        description         TEXT,
+        xRes                INTEGER,
+        yRes                INTEGER,
+        scanLines           INTEGER     DEFAULT 1,
+        voltage             TEXT,
+        staticPower         TEXT,
+        maxPower            TEXT,
+        pitch               TEXT
+    );
+    
+    CREATE TABLE display (
+        uniqueID            INTEGER     PRIMARY	KEY,
+        name                TEXT,
+        description         TEXT,
+        xRes                INTEGER,
+        yRes                INTEGER
+    );
+    
+    CREATE TABLE board (
+        uniqueID            INTEGER     PRIMARY	KEY,
+        partNumber          TEXT,
+        name                TEXT,
+        description         TEXT
+    );
+    
+    CREATE TABLE bitstream (
+        uniqueID            INTEGER     PRIMARY	KEY,
+        bitFile             TEXT,
+        name                TEXT,
+        description         TEXT
+    );
+    
+    CREATE TABLE board_bitstream (
+        uniqueID            INTEGER     PRIMARY KEY AUTOINCREMENT,
+        board               INTEGER,
+        bitstream           INTEGER
+    );
+    
+    CREATE TABLE channel (
+        uniqueID            INTEGER     PRIMARY	KEY AUTOINCREMENT,
+        id                  INTEGER     DEFAULT 0,
+        module              INTEGER,
+        pattern             TEXT
+    );
+    
+    CREATE TABLE superChannel (
+        uniqueID            INTEGER     PRIMARY	KEY AUTOINCREMENT,
+        id                  INTEGER     DEFAULT 0,
+        display             INTEGER
+    );
+    
+    CREATE TABLE member (
+        uniqueID            INTEGER     PRIMARY	KEY AUTOINCREMENT,
+        id                  INTEGER     DEFAULT 0,
+        superChannel        INTEGER,
+        xPos                INTEGER     DEFAULT 0,
+        yPos                INTEGER     DEFAULT 0
+    );
+    """
+
+os.chdir('/usr/share/ax-utils/configs')
+
+# Remove the existing database file.
+try:
+    os.remove('.presets.db')
+except OSError:
+    pass
+
+conn = sqlite3.connect('.presets.db')
+
+# Create the new database from the template script above.
+conn.executescript(db_template)
+
+# Convert bitstreams first.
+bitstreams = os.listdir('bitstream/')
+
+for i in bitstreams:
+    try:
+        xml = etree.parse('bitstream/' + i).getroot()
+    except Exception as e:
+        print 'Error while parsing \'' + i + '\': ' + str(e)
+        continue
+    
+    cur = conn.cursor()
+    
+    # Create the table entry for this bitstream.
+    try:
+        cur.execute("insert into bitstream \
+                     (uniqueID, bitFile, name, description) \
+                     values (:uniqueID, :bitFile, :name, :description)",
+                     dict(zip([s.tag for s in xml],
+                              [s.text.strip() for s in xml])))
+    except sqlite3.ProgrammingError:
+        print 'Unable to process \'' + i + '\'; check syntax'
+        continue
+    
+    # Create associations with compatible breakout boards.
+    compat = xml.find('compatibilities')
+    
+    if compat is not None:
+        compat_list = [c.strip() for c in compat.text.split(';')]
+        try:
+            cur.executemany('insert into board_bitstream (board, bitstream) \
+                             values (?, ?)',
+                             [(xml.find('uniqueID').text.strip(), c) \
+                              for c in compat_list])
+        except AttributeError:
+            print 'Unable to process \'' + i + '\'; check syntax'
+            continue
+
+# Now convert breakout boards.
+boards = os.listdir('board')
+
+for i in boards:
+    try:
+        xml = etree.parse('board/' + i).getroot()
+    except Exception as e:
+        print 'Error while parsing \'' + i + '\': ' + str(e)
+        continue
+    
+    cur = conn.cursor()
+    
+    # Create the table entry for this breakout board.
+    try:
+        cur.execute("insert into board \
+                     (uniqueID, partNumber, name, description) \
+                     values (:uniqueID, :partNumber, :name, :description)",
+                     dict(zip([s.tag for s in xml],
+                              [s.text.strip() for s in xml])))
+    except sqlite3.ProgrammingError:
+        print 'Unable to process \'' + i + '\'; check syntax'
+        continue
+
+# Now convert display types.
+displays = os.listdir('display')
+
+for i in displays:
+    try:
+        xml = etree.parse('display/' + i).getroot()
+    except Exception as e:
+        print 'Error while parsing \'' + i + '\': ' + str(e)
+        continue
+    
+    cur = conn.cursor()
+    
+    # Create the table entry for this display.
+    try:
+        cur.execute("insert into display \
+                     (uniqueID, name, description, xRes, yRes) \
+                     values (:uniqueID, :name, :description, :xRes, :yRes)",
+                     dict(zip([s.tag for s in xml],
+                              [s.text.strip() for s in xml])))
+    except sqlite3.ProgrammingError:
+        print 'Unable to process \'' + i + '\'; check syntax'
+        continue
+    
+    # Now create the superchannel entries for this display.
+    for s in xml.findall('superChannel'):
+        try:
+            cur.execute('insert into superChannel (id, display) \
+                         values (?, ?)',
+                         (s.attrib['id'], xml.find('uniqueID').text.strip()))
+        except (AttributeError, KeyError):
+            print 'Unable to process \'' + i + '\'; check syntax'
+            continue
+        
+        cur.execute('select uniqueID from superChannel \
+                     where id=? and display=?',
+                     (s.attrib['id'],
+                      xml.find('uniqueID').text.strip()))
+        sc_uid = cur.fetchone()[0]
+        
+        # Also populate superchannel members.
+        try:
+            cur.executemany('insert into member \
+                             (id, superChannel, xPos, yPos) \
+                             values (?, ?, ?, ?)',
+                             [(m.attrib['index'], sc_uid,
+                               m.attrib['xPos'], m.attrib['yPos']) \
+                              for m in s if m.tag == 'module'])
+        except (AttributeError, KeyError):
+            print 'Unable to process \'' + i + '\'; check syntax'
+            continue
+
+# Finally, convert module types.
+modules = os.listdir('module')
+
+for i in modules:
+    try:
+        xml = etree.parse('module/' + i).getroot()
+    except Exception as e:
+        print 'Error while parsing \'' + i + '\': ' + str(e)
+        continue
+    
+    cur = conn.cursor()
+    
+    # Create the table entry for this breakout board.
+    try:
+        cur.execute("insert into module \
+                     (uniqueID, partNumber, name, description, \
+                      xRes, yRes, scanLines, voltage, staticPower, \
+                      maxPower, pitch) \
+                     values (:uniqueID, :partNumber, :name, :description, \
+                             :xRes, :yRes, :scanLines, :voltage, \
+                             :staticPower, :maxPower, :pitch)",
+                     dict(zip([s.tag for s in xml],
+                              [s.text.strip() for s in xml])))
+    except sqlite3.ProgrammingError:
+        print 'Unable to process \'' + i + '\'; check syntax'
+        continue
+    
+    # Create channel entries for this module.
+    try:
+        cur.executemany('insert into channel (id, module, pattern) \
+                         values (?, ?, ?)',
+                         [(m.attrib['id'], xml.find('uniqueID').text.strip(), \
+                           m.text.strip()) \
+                          for m in xml.findall('channel')])
+    except (AttributeError, KeyError):
+        print 'Unable to process \'' + i + '\'; check syntax'
+        continue
+    
+# Commit changes and close the database.
+conn.commit()
+conn.close()

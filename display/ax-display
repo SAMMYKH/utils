@@ -1,0 +1,461 @@
+#!/usr/bin/python
+#
+
+import os, sqlite3, subprocess, fcntl, struct, sys, time
+import logging, logging.handlers
+import axdisplay, axserver
+
+# Set up logging.
+logger = logging.getLogger('ax-display')
+
+# Make a sysloghandler and give it a formatter.
+syslog_handler = axserver.UTFFixedSysLogHandler(address='/dev/log')
+syslog_handler.setFormatter(logging.Formatter(fmt='%(name)s: %(message)s'))
+
+# Set the handler/s to use.
+logger.addHandler(syslog_handler)
+
+# Finally, set the level to 'info'.
+logger.setLevel(logging.INFO)
+
+# Path for configs.
+configs_path = '/usr/share/ax-utils/configs'
+
+# IOCTL numbers for different commands.
+set_modinfo = 0x4 << (4*7) | 4 << (4*4) | ord('x') << (4*2) | 0
+set_modpattern = 0x4 << (4*7) | 514 << (4*4) | ord('x') << (4*2) | 1
+add_mod = 0x4 << (4*7) | 6 << (4*4) | ord('x') << (4*2) | 2
+reset_mod = 0x0 << (4*7) | 0 << (4*4) | ord('x') << (4*2) | 3
+
+# Function to handle 'configure' command.
+
+def display_configure(args):
+    # Open databases.
+    presets_db = sqlite3.connect(os.path.join(configs_path, '.presets.db'))
+    presets_db.row_factory = sqlite3.Row
+    
+    config_db = sqlite3.connect(args.config)
+    config_db.row_factory = sqlite3.Row
+    
+    # Check breakout board ID to see if it's compatible with the requested
+    # bitstream.
+    
+    # TODO: Implement. Need to get breakout board ID, and check presets db to
+    #       see if it's in the compatibility list.
+    if True:
+        if args.verbose:
+            print 'Configuring FPGA...'
+        
+        # If so, configure the FPGA (if we need to).
+        try:
+            configure_fpga(config_db, presets_db)
+        except Exception as e:
+            logger.error(e)
+            print >> sys.stderr, 'Error: %s' % str(e)
+            return
+    else:
+        logger.critical(e)
+        raise Exception('bitstream incompatible with current breakout board')
+    
+    # Now that we've configured the FPGA, wait for all devices to be enumerated.
+    os.system('udevadm settle')
+    
+    # Now, check for clocks in the configuration database and set them up.
+    for c in config_db.execute('select deviceName from clock'):
+        if args.verbose:
+            print 'Configuring clock %s...' % c[0]
+        
+        try:
+            setup_clock(c[0], config_db)
+        except Exception as e:
+            logger.warning('could not configure clock %s: %s' % (c[0], e))
+            print >> sys.stderr, 'Warning: unable to configure clock %s: %s' \
+                                 % (c[0], e)
+    
+    # Check for displays in the configuration database and set them up.
+    for c in config_db.execute('select deviceName from display'):
+        if args.verbose:
+            print 'Configuring display %s...' % c[0]
+        
+        try:
+            setup_display(c[0], config_db, presets_db)
+        except Exception as e:
+            logger.warning('could not configure display %s: %s' % (c[0], e))
+            print >> sys.stderr, 'Warning: unable to configure display ' \
+                                  + '%s: %s' % (c[0], e)
+    
+    # Close databases.
+    presets_db.close()
+    config_db.close()
+    
+    logger.info('completed display configuration successfully')
+    
+    if args.verbose:
+        print 'Finished display configuration'
+
+# Function to handle 'list' command.
+
+def display_list(args):
+    # Open databases.
+    presets_db = sqlite3.connect(os.path.join(configs_path, '.presets.db'))
+    presets_db.row_factory = sqlite3.Row
+    
+    config_db = sqlite3.connect(args.config)
+    config_db.row_factory = sqlite3.Row
+    
+    # Check 'display' parameter, and decide whether to display info for all
+    # displays or just a specific one.
+    if args.display is not None:
+        displays = [c for c in config_db.execute(
+            'select * from display where deviceName=?', (args.display,))]
+    else:
+        displays = [c for c in config_db.execute(
+            'select * from display')]
+    
+    # Check 'info' parameter to see whether to display detailed information or
+    # not.
+    if args.info is True:
+        for d in displays:
+            # Get framebuffer device path.
+            try:
+                axdisplay.get_fb_name(d['deviceName'])
+            except:
+                continue
+            
+            # Get display information.
+            display_info = presets_db.execute('select name, xRes, yRes \
+                from display where uniqueID=?',
+                (str(d['displayID']),)).fetchone()
+            
+            # Get module information.
+            module_info = presets_db.execute('select name \
+                from module where uniqueID=?',
+                (str(d['moduleID']),)).fetchone()
+            
+            print 'LEDFB ID \'%s\': FB path \'%s\'' % (args.display, fb_name)
+            print 'Display ID %d: %s' \
+                % (int(d['displayID']), display_info['name'])
+            print 'Resolution %dx%d' \
+                % (int(display_info['xRes']), int(display_info['yRes']))
+            print 'Module ID %d: %s' \
+                % (int(d['moduleID']), module_info['name'])
+            print 'Grey depth: %d' % d['greyDepth']
+            print 'Brightness: %d' % d['brightness']
+            print 'Gamma: %d' % d['gamma']
+            print 'RGB offsets: %d, %d, %d' \
+                % (int(d['rOffset']), int(d['gOffset']), int(d['bOffset']))
+    else:
+        for d in displays:
+            print d['deviceName']
+
+# Function to handle 'set' command.
+
+def display_set(args):
+    # Open databases.
+    presets_db = sqlite3.connect(os.path.join(configs_path, '.presets.db'))
+    presets_db.row_factory = sqlite3.Row
+    
+    config_db = sqlite3.connect(args.config)
+    config_db.row_factory = sqlite3.Row
+    
+    # Check 'display' parameter, and decide whether to apply settings to one
+    # specific display, or all displays.
+    if args.display is not None:
+        displays = [c for c in config_db.execute(
+            'select * from display where deviceName=?', (args.display,))]
+    else:
+        displays = [c for c in config_db.execute(
+            'select * from display')]
+    
+    fb_names = []
+    for d in displays:
+        try:
+            fb_name = axdisplay.get_fb_name(d['deviceName'])
+        except:
+            continue
+        
+        fb_names.append((fb_name, d['deviceName']))
+    
+    # Check for 'brightness' setting.
+    if args.brightness is not None:
+        for f in fb_names:
+            try:
+                axdisplay.set_brightness(f[1], f[0], config_db,
+                    args.brightness)
+            except:
+                logger.warning('unable to adjust brightness for %s' % f[1])
+                print >> sys.stderr, 'Warning: unable to adjust brightness ' \
+                                   + 'for %s' % f[1]
+    
+    # Check for 'depth' setting.
+    if args.depth is not None:
+        for f in fb_names:
+            try:
+                axdisplay.set_depth(f[1], f[0], config_db, args.depth)
+            except:
+                logger.warning('unable to adjust depth for %s' % f[1])
+                print >> sys.stderr, 'Warning: unable to adjust depth ' \
+                                   + 'for %s' % f[1]
+    
+    # Check for 'gamma' setting.
+    if args.gamma is not None:
+        for f in fb_names:
+            try:
+                axdisplay.set_cmap(f[1], f[0], config_db, args.gamma,
+                    args.roff, args.goff, args.boff)
+            except:
+                logger.warning('unable to adjust gamma for %s' % f[1])
+                print >> sys.stderr, 'Warning: unable to adjust gamma ' \
+                                   + 'for %s' % f[1]
+
+# This function configures the FPGA with the specified bitstream. Needs to be
+# given a reference to both the presets database and the config database.
+
+def configure_fpga(config_db, presets_db):
+    # Need to get fpga path and bitstream ID from config.db.
+    try:
+        fpga_name = config_db.execute(
+            'select value from system \
+            where parameter="fpgaName"').fetchone()[0]
+    except TypeError:
+        raise Exception('no FPGA entry found in configuration database')
+    except sqlite3.OperationalError:
+        raise Exception('configuration database malformed')
+    
+    try:
+        bitstream_id = int(config_db.execute(
+            'select value from system \
+             where parameter="bitstream"').fetchone()[0])
+    except TypeError:
+        raise Exception('no bitstream entry found in configuration database')
+    except ValueError:
+        raise Exception('invalid bitstream specified')
+    except sqlite3.OperationalError:
+        raise Exception('configuration database malformed')
+    
+    # Check to see if the FPGA is already configured with the requested
+    # bitstream.
+    with open(os.path.join('/sys/devices/platform', str(fpga_name),
+    'config'), 'r') as infile:
+        if bitstream_id == int(infile.read().strip()):
+            return
+    
+    # Need to get bitstream filename from .presets.db.
+    try:
+        bit_file = presets_db.execute(
+            'select bitFile from bitstream where uniqueID=?',
+            (bitstream_id,)).fetchone()[0]
+    except TypeError:
+        raise Exception('selected bitstream not found')
+    except sqlite3.OperationalError:
+        raise Exception('configuration database malformed')
+    
+    with open(os.path.join('/sys/devices/platform', str(fpga_name),
+    'load_bitstream'), 'w') as outfile:
+        subprocess.call(['echo', 'configure %s' % str(bit_file)],
+            stdout=outfile)
+    
+    time.sleep(2)
+    
+    with open(os.path.join('/sys/devices/platform', str(fpga_name), 'config'),
+    'r') as infile:
+        if int(bitstream_id) != int(infile.read()):
+            raise Exception('FPGA configuration failed')
+
+# This function sets up the given clock device with the settings stored in the
+# config database.
+
+def setup_clock(clock_name, config_db):
+    frequency, coarse_phase, fine_phase = config_db.execute(
+        'select frequency, coarsePhase, finePhase from clock \
+         where deviceName=?', (clock_name,)).fetchone()
+    
+    # Get input clock frequency.
+    with open(os.path.join(axdisplay.fpga_devices_path, str(clock_name),
+        'in_clock'), 'r') as infile:
+        in_clk = int(infile.read())
+    
+    # Validate the values from the database.
+    try:
+        if int(coarse_phase) != 0 \
+            and int(coarse_phase) != 90 \
+            and int(coarse_phase) != 180 \
+            and int(coarse_phase) != 270:
+            raise ValueError('coarse_phase value is invalid')
+        
+        if int(fine_phase) < -10000 \
+            or int(fine_phase) > 10000:
+            raise ValueError('fine_phase value is invalid')
+       
+        if int(frequency) < (in_clk / 255.0) \
+            or int(frequency) > (in_clk / 2.0):
+            raise ValueError('frequency value is invalid')
+    except:
+        raise
+    
+    with open(os.path.join(axdisplay.fpga_devices_path, str(clock_name),
+        'out_clock'), 'w') as outfile:
+        subprocess.call(['echo', str(frequency)], stdout=outfile)
+    with open(os.path.join(axdisplay.fpga_devices_path, str(clock_name),
+        'coarse_phase'), 'w') as outfile:
+        subprocess.call(['echo', str(coarse_phase)], stdout=outfile)
+    with open(os.path.join(axdisplay.fpga_devices_path, str(clock_name),
+        'fine_phase'), 'w') as outfile:
+        subprocess.call(['echo', str(fine_phase)], stdout=outfile)
+
+# This function sets up the given LED framebuffer device with the settings
+# stored in the config database, using the data in the presets database.
+
+def setup_display(display_name, config_db, presets_db):
+    display_settings = config_db.execute(
+        'select moduleID, displayID, gamma, \
+         rOffset, gOffset, bOffset, rotation \
+         from display where deviceName=?', (display_name,)).fetchone()
+    
+    # Get module and display information from the presets database.
+    module_info = presets_db.execute('select xRes, yRes, scanLines \
+        from module where uniqueID=?',
+        (str(display_settings['moduleID']),)).fetchone()
+    
+    channel_info = presets_db.execute('select id, pattern from channel \
+        where module=?',
+        (str(display_settings['moduleID']),)).fetchall()
+    
+    display_info = presets_db.execute('select xRes, yRes from display \
+        where uniqueID=?',
+        (str(display_settings['displayID']),)).fetchone()
+    
+    member_info = presets_db.execute('select \
+        superChannel.id, member.id, member.xPos, member.yPos \
+        from member \
+        inner join superChannel \
+        on member.superChannel=superChannel.uniqueID \
+        where superChannel.display=?',
+        (str(display_settings['displayID']),)).fetchall()
+    
+    # Figure out the path to the fb character device.
+    try:
+        fb_name = axdisplay.get_fb_name(display_name)
+    except:
+        raise Exception('specified display does not exist')
+    
+    # Reset module list.
+    with open(fb_name, 'r') as fb_handle:
+        fcntl.ioctl(fb_handle, reset_mod, '')
+    
+    # Set the module info.
+    try:
+        modinfo = struct.pack('<4B',
+            module_info['xRes'],
+            module_info['yRes'],
+            len(channel_info),
+            module_info['scanLines'])
+    except:
+        raise ValueError('module definition invalid')
+    
+    with open(fb_name, 'r') as fb_handle:
+        fcntl.ioctl(fb_handle, set_modinfo, modinfo)
+    
+    # Set the module patterns.
+    for c in channel_info:
+        try:
+            pattern_list = eval(c[1])
+            pattern = struct.pack('<' + str(len(pattern_list)) + 'H',
+                *[int(i) for i in pattern_list])
+            pattern += '\x00' * (512 - len(pattern))
+            modpattern = chr(c[0]) + '\x00' + pattern
+        except:
+            raise ValueError('channel pattern invalid')
+        
+        with open(fb_name, 'r') as fb_handle:
+            fcntl.ioctl(fb_handle, set_modpattern, modpattern)
+    
+    # Add modules to the display.
+    for m in member_info:
+        try:
+            mod = chr(int(m[0])) \
+                + chr(int(m[1])) \
+                + struct.pack('<H', int(m[2])) \
+                + struct.pack('<H', int(m[3]))
+        except:
+            raise ValueError('module connection invalid')
+        
+        with open(fb_name, 'r') as fb_handle:
+            fcntl.ioctl(fb_handle, add_mod, mod)
+    
+    # Set the display brightness.
+    axdisplay.set_brightness(display_name, fb_name, config_db)
+    
+    # Set the display grey depth.
+    axdisplay.set_depth(display_name, fb_name, config_db)
+    
+    # Run fbset on the framebuffer device.
+    subprocess.call(['fbset', '-fb', fb_name, '-g',
+        str(int(display_info['xRes'])), str(int(display_info['yRes'])),
+        str(int(display_info['xRes'])), str(int(display_info['yRes'])),
+        '32'])
+    
+    axdisplay.set_cmap(display_name, fb_name, config_db)
+    
+    # Set display rotation.
+    axdisplay.set_rotation(display_name, fb_name, config_db)
+
+# If this is called as a script.
+if __name__ == '__main__':
+    import argparse
+    
+    # Set up the argument parser.
+    parser = argparse.ArgumentParser(
+        description='Utility to configure Axent LED displays.')
+    
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='print lots of stuff to stdout')
+    parser.add_argument('-c', '--config', default='/usr/share/db/config.db',
+                        help='path to configuration database')
+    subparsers = parser.add_subparsers()
+    
+    # Parser for 'configure' command.
+    parser_configure = subparsers.add_parser('configure')
+    parser_configure.set_defaults(func=display_configure)
+    
+    # Parser for 'list' command.
+    parser_list = subparsers.add_parser('list')
+    parser_list.add_argument('-d', '--display',
+                             help='specific display to show')
+    parser_list.add_argument('-i', '--info',
+                             help='display detailed information')
+    parser_list.set_defaults(func=display_list)
+    
+    # Parser for 'set' command.
+    parser_set = subparsers.add_parser('set')
+    parser_set_group = parser_set.add_mutually_exclusive_group()
+    parser_set_group.add_argument('-d', '--display',
+                                  help='specific display to show')
+    parser_set.add_argument('-b', '--brightness', type=int,
+                            choices=range(0, 16), help='adjust brightness')
+    parser_set.add_argument('-r', '--depth', type=int,
+                            choices=range(1, 8), help='adjust grey depth')
+    parser_set.add_argument('-g', '--gamma', type=float,
+                            help='adjust gamma')
+    parser_set.add_argument('-roff', type=int,
+                            help='adjust red channel offset')
+    parser_set.add_argument('-goff', type=int,
+                            help='adjust green channel offset')
+    parser_set.add_argument('-boff', type=int,
+                            help='adjust blue channel offset')
+    parser_set.set_defaults(func=display_set)
+    
+    # Parse the command-line arguments.
+    args = parser.parse_args()
+    
+    if not os.path.exists(args.config):
+        sys.exit('Error: config.db does not exist')
+    
+    # Check to make sure databases exist.
+    if not os.path.exists(os.path.join(configs_path, '.presets.db')):
+        print 'Compiling XML files...'
+        subprocess.call([os.path.join(configs_path, 'refresh_db')])
+        print 'done'
+    
+    # Call the appropriate function for the chosen command.
+    args.func(args)

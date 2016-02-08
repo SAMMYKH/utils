@@ -1,0 +1,7 @@
+<bitstream>
+    <uniqueID>11</uniqueID>
+    <bitFile>grey_8_vp_mono.bit</bitFile>
+    <name>Petrol Price P16 4-LED</name>
+    <description>Monochrome version of grey_8_vp.</description>
+    <compatibilities>2</compatibilities>
+</bitstream>

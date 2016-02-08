@@ -1,0 +1,7 @@
+<bitstream>
+    <uniqueID>9</uniqueID>
+    <bitFile>grey_saferoads_vms_trailer.bit</bitFile>
+    <name>Greyscale Saferoads VMS Trailer</name>
+    <description>Axent conversion of Saferoads VMS trailer. One data line out, one data line return.</description>
+    <compatibilities>2</compatibilities>
+</bitstream>

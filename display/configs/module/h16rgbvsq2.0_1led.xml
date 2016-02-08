@@ -1,0 +1,25 @@
+<module>
+    <uniqueID>2</uniqueID>
+    <partNumber>H16RGBVSQ2.0</partNumber>
+    <name>P16 1-led</name>
+    <description>P16 RGB module but with only one LED loaded per pixel to give a P16 monochrome module.</description>
+    <xRes>16</xRes>
+    <yRes>8</yRes>
+    <scanLines>1</scanLines>
+    <channel id="0">
+        [79, 78, 77, 76, 95, 94, 93, 92, 111, 110, 109, 108, 127, 126, 125, 124,
+         75, 74, 73, 72, 91, 90, 89, 88, 107, 106, 105, 104, 123, 122, 121, 120,
+         71, 70, 69, 68, 87, 86, 85, 84, 103, 102, 101, 100, 119, 118, 117, 116,
+         67, 66, 65, 64, 83, 82, 81, 80, 99, 98, 97, 96, 115, 114, 113, 112]
+    </channel>
+    <channel id="1">
+        [15, 14, 13, 12, 31, 30, 29, 28, 47, 46, 45, 44, 63, 62, 61, 60,
+         11, 10, 9, 8, 27, 26, 25, 24, 43, 42, 41, 40, 59, 58, 57, 56,
+         7, 6, 5, 4, 23, 22, 21, 20, 39, 38, 37, 36, 55, 54, 53, 52, 
+         3, 2, 1, 0, 19, 18, 17, 16, 35, 34, 33, 32, 51, 50, 49, 48]
+    </channel>
+    <voltage>5V</voltage>
+    <staticPower>0.3W</staticPower>
+    <maxPower>13.1W</maxPower>
+    <pitch>16mm</pitch>
+</module>

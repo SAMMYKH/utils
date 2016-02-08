@@ -1,0 +1,21 @@
+<display>
+    <uniqueID>9</uniqueID>
+    <name>Petrol Price Panel - Square Modules</name>
+    <description>Petrol price panel with 6 modules horizontal and 2 modules vertical. Data enters from bottom right hand corner and travels horizontally and then vertically.</description>
+    <xRes>96</xRes>
+    <yRes>32</yRes>
+    <superChannel id="0">
+        <module index="0" xPos="80" yPos="16"/>
+        <module index="1" xPos="64" yPos="16"/>
+        <module index="2" xPos="48" yPos="16"/>
+        <module index="3" xPos="32" yPos="16"/>
+        <module index="4" xPos="16" yPos="16"/>
+        <module index="5" xPos="0" yPos="16"/>
+        <module index="6" xPos="80" yPos="0"/>
+        <module index="7" xPos="64" yPos="0"/>
+        <module index="8" xPos="48" yPos="0"/>
+        <module index="9" xPos="32" yPos="0"/>
+        <module index="10" xPos="16" yPos="0"/>
+        <module index="11" xPos="0" yPos="0"/>
+    </superChannel>
+</display>
